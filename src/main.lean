@@ -1,6 +1,7 @@
 import tactic.alias
 import tactic.suggest
 import tactic.basic
+import tactic.interactive
 
 alias string ← symbol
 
@@ -23,10 +24,10 @@ reserve prefix `◇` :40
 notation `⊥` := formula.bottom
 notation `⊤` := formula.top
 notation ¬ a := formula.not a
-notation a ∧ b := (formula.and a b)
-notation a ∨ b := formula.or a b
+notation a ` ∧ ` b := (formula.and a b)
+notation a ` ∨ ` b := formula.or a b
 notation a ` ⟶ ` b := formula.implies a b
-notation a ↔ b := formula.iff a b
+notation a ` ↔ ` b := formula.iff a b
 notation □a := formula.box a
 notation ◇a := formula.diamond a
 
@@ -38,6 +39,21 @@ notation ◇a := formula.diamond a
 -- infix ` ↔ ` :20 := formula.iff
 -- prefix `□` :40 := formula.box
 -- prefix `◇` :40 := formula.diamond
+
+meta def formula.to_pexpr : formula → pexpr
+| ⊤ := ``(⊤)
+| ⊥ := ``(⊥)
+| (formula.symbol s) := ``(formula.symbol %%s)
+| ¬a := ``(¬%%a.to_pexpr)
+| (a ∧ b) := ``(%%a.to_pexpr ∧ %%b.to_pexpr)
+| (a ∨ b) := ``(%%a.to_pexpr ∨ %%b.to_pexpr)
+| (a ⟶ b) := ``(%%a.to_pexpr ⟶ %%b.to_pexpr)
+| (a ↔ b) := ``(%%a.to_pexpr ↔ %%b.to_pexpr)
+| □a := ``(□%%a.to_pexpr)
+| ◇a := ``(◇%%a.to_pexpr)
+
+meta instance formula.has_to_pexpr : has_to_pexpr formula :=
+{ to_pexpr := formula.to_pexpr }
 
 @[simp] def modal_free : formula → Prop
 | ⊤ := true
@@ -65,7 +81,7 @@ notation ◇a := formula.diamond a
 
 structure tautology :=
 (a : formula)
-(modal_free : modal_free a)
+{modal_free : modal_free a}
 (taut : ∀asgn, satisfies asgn a)
 
 @[simp] def subst (substs : symbol → formula) : formula → formula
@@ -105,7 +121,7 @@ notation ⟨m, w⟩ ` ⊩ ` a := truth m w a
 reserve infix ` ⊩ ` :15
 notation m ⊩ a := true_in m a
 
-def substitution_inst (a b : formula) : Prop :=
+@[simp] def substitution_inst (a b : formula) : Prop :=
 ∃substs, subst substs a = b
 
 def substitution_insts (a : formula) : set formula :=
@@ -127,7 +143,7 @@ begin
   tautology,
 end
 
-def k (a b : formula) := □(a ⟶ b) ⟶ (□a ⟶ □b)
+@[simp] def k (a b : formula) := □(a ⟶ b) ⟶ (□a ⟶ □b)
 
 theorem k.valid : ∀(a b : formula), ⊨ k a b :=
 begin
@@ -141,7 +157,7 @@ begin
   assumption',
 end
 
-def dual (a : formula) := ◇a ↔ ¬□¬a
+@[simp] def dual (a : formula) := ◇a ↔ ¬□¬a
 
 theorem dual.valid : ∀a : formula, ⊨ dual a :=
 begin
@@ -231,14 +247,14 @@ inductive derivable (axms : set formula) : formula → Prop
 | dual (a : formula) : derivable (dual a)
 | taut (taut : tautology) (a : formula) (h : substitution_inst taut.a a) : derivable a
 | axm (axm : formula) {ha : axm ∈ axms} (a : formula) (h : substitution_inst axm a) : derivable a
-| mp {a b : formula} (hab : derivable (a ⟶ b)) (ha : derivable a) : derivable b
+| mp (a b : formula) (hab : derivable (a ⟶ b)) (ha : derivable a) : derivable b
 | nec {a : formula} (ha : derivable a) : derivable □a
 
 reserve prefix `⊢ ` :15
 reserve infix ` ⊢ ` :15
 
 notation axms ⊢ a := derivable axms a
-notation ⊢ a := λ_, false ⊢ a
+notation ⊢ a := ∅ ⊢ a
 
 theorem soundness (c : set model) (axms : set formula)
     (haxms : ∀axm ∈ axms, ∀a, substitution_inst axm a → (c ⊨ a)) :
@@ -260,4 +276,74 @@ begin
     assumption', },
   { apply nec_valid,
     assumption, },
+end
+
+@[simp] def p := formula.symbol "p"
+@[simp] def q := formula.symbol "q"
+@[simp] def r := formula.symbol "r"
+
+meta def build_func : pexpr → expr → tactic pexpr
+| f t :=
+  do
+    match t with
+    | `(and %%l %%r) :=
+      do
+        f ← build_func f l,
+        build_func f r
+    | `(%%a = %%b) :=
+      match a with
+        | expr.app _ a :=
+          do 
+            t ← tactic.infer_type a,
+            match t with
+            | `(string) := return ``(λx : symbol, if (x = %%a) then %%b else %%f x)
+            | _ := return f
+            end
+        | _ := return f
+      end
+    | _ := return f
+    end
+
+meta def tactic.substitution_inst : tactic unit :=
+do
+  tactic.applyc `exists.intro,
+  t ← tactic.target,
+  f ← build_func ``(λ_, ⊥) t >>= tactic.to_expr,
+  tactic.rotate 1,
+  tactic.exact f,
+  `[tautology!]
+
+meta def tactic.derive_taut (taut : formula) : tactic unit :=
+do
+  let opts : tactic.apply_cfg := {new_goals := tactic.new_goals.all},
+  tactic.applyc `derivable.taut opts,
+  tactic.constructor opts,
+  taut ← tactic.to_expr taut.to_pexpr,
+  tactic.exact taut,
+  `[simp only [modal_free]],
+  `[tautology!],
+  `[simp only [satisfies]],
+  `[tautology!],
+  `[simp only [substitution_inst, subst]],
+  tactic.substitution_inst
+
+example (a b : formula) : ⊢ (a ∨ ¬a) ∧ (b ∨ ¬b) :=
+by tactic.derive_taut ((p ∨ ¬p) ∧ (q ∨ ¬q))
+
+example (a b c : formula) : ⊢ (a ⟶ b) ⟶ (b ⟶ c) ⟶ (a ⟶ c) :=
+by tactic.derive_taut ((p ⟶ q) ⟶ (q ⟶ r) ⟶ (p ⟶ r))
+
+lemma box_and (a b : formula) : ⊢ □(a ∧ b) ⟶ (□a ∧ □b) :=
+begin
+  apply derivable.mp,
+  { apply derivable.mp,
+    { tactic.derive_taut ((p ⟶ q) ⟶ (p ⟶ r) ⟶ p ⟶ (q ∧ r)), },
+    { apply derivable.mp,
+      { apply derivable.k (a ∧ b) a, },
+      { apply derivable.nec,
+        tactic.derive_taut (p ∧ q ⟶ p), } } },
+  { apply derivable.mp,
+    { apply derivable.k, },
+    { apply derivable.nec,
+      tactic.derive_taut (p ∧ q ⟶ q) } },
 end
