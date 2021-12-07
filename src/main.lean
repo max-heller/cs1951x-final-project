@@ -246,7 +246,7 @@ inductive derivable (axms : set formula) : formula → Prop
 | k (a b : formula) : derivable (k a b)
 | dual (a : formula) : derivable (dual a)
 | taut (taut : tautology) (a : formula) (h : substitution_inst taut.a a) : derivable a
-| axm (axm : formula) {ha : axm ∈ axms} (a : formula) (h : substitution_inst axm a) : derivable a
+| axm (axm ∈ axms) (a : formula) (h : substitution_inst axm a) : derivable a
 | mp (a b : formula) (hab : derivable (a ⟶ b)) (ha : derivable a) : derivable b
 | nec {a : formula} (ha : derivable a) : derivable □a
 
@@ -283,26 +283,22 @@ end
 @[simp] def r := formula.symbol "r"
 
 meta def build_func : pexpr → expr → tactic pexpr
-| f t :=
+| f `(and %%l %%r) :=
   do
-    match t with
-    | `(and %%l %%r) :=
-      do
-        f ← build_func f l,
-        build_func f r
-    | `(%%a = %%b) :=
-      match a with
-        | expr.app _ a :=
-          do 
-            t ← tactic.infer_type a,
-            match t with
-            | `(string) := return ``(λx : symbol, if (x = %%a) then %%b else %%f x)
-            | _ := return f
-            end
-        | _ := return f
+    f ← build_func f l,
+    build_func f r
+| f `(%%a = %%b) :=
+  match a with
+  | expr.app _ a :=
+    do 
+      t ← tactic.infer_type a,
+      match t with
+      | `(string) := return ``(λx : symbol, if (x = %%a) then %%b else %%f x)
+      | _ := return f
       end
-    | _ := return f
-    end
+  | _ := return f
+  end
+| f _ := return f
 
 meta def tactic.substitution_inst : tactic unit :=
 do
