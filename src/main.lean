@@ -323,6 +323,7 @@ do
   `[simp only [substitution_inst, subst]],
   tactic.substitution_inst
 
+-- TODO: should be able to infer tautology if formula to prove is modal-free
 example (a b : formula) : ⊢ (a ∨ ¬a) ∧ (b ∨ ¬b) :=
 by tactic.derive_taut ((p ∨ ¬p) ∧ (q ∨ ¬q))
 
