@@ -2,9 +2,9 @@ import tactic.basic
 
 import .formula
 
-@[simp] def p := formula.symbol "p"
-@[simp] def q := formula.symbol "q"
-@[simp] def r := formula.symbol "r"
+@[simp] def p := formula.symbol 0
+@[simp] def q := formula.symbol 1
+@[simp] def r := formula.symbol 2
 
 meta def build_func : pexpr → expr → tactic pexpr
 | f `(and %%l %%r) :=

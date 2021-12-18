@@ -1,6 +1,7 @@
 import tactic.alias
 
-alias string ← symbol
+@[reducible]
+def symbol := nat
 
 inductive formula : Type
 | bottom : formula
