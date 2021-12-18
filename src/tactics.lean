@@ -17,7 +17,7 @@ meta def build_func : pexpr → expr → tactic pexpr
     do 
       t ← tactic.infer_type a,
       match t with
-      | `(string) := return ``(λx : symbol, if (x = %%a) then %%b else %%f x)
+      | `(ℕ) := return ``(λx : symbol, if (x = %%a) then %%b else %%f x)
       | _ := return f
       end
   | _ := return f
@@ -28,7 +28,7 @@ meta def tactic.substitution_inst : tactic unit :=
 do
   tactic.applyc `exists.intro,
   t ← tactic.target,
-  f ← build_func ``(λ_, ⊥) t >>= tactic.to_expr,
+  f ← build_func ``(λ_ : symbol, formula.bottom) t >>= tactic.to_expr,
   tactic.rotate 1,
   tactic.exact f,
   `[tautology!]
