@@ -76,11 +76,7 @@ end
 
 lemma foldr_deduction (a b) (xs) :
   list.foldr formula.implies (b ⟶ a) xs = list.foldr formula.implies a (xs ++ [b]) :=
-begin
-  induction xs,
-  { tautology, },
-  { simp, },
-end
+by simp
 
 lemma derivable.deduction (axms : set formula) (Γ : set formula) (a b : formula) :
   (Γ ∪ {b} ⊢[axms] a) ↔ (Γ ⊢[axms] b ⟶ a) :=
