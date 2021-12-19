@@ -1,8 +1,12 @@
 import tactic.alias
+import tactic.basic
+import tactic.linarith
 
 @[reducible]
-def symbol := nat
+def symbol := ℕ
 
+/-- Representation of formulas in modal logic. -/
+@[derive decidable_eq]
 inductive formula : Type
 | bottom : formula
 | top : formula
@@ -29,30 +33,17 @@ notation a ` ↔ ` b := formula.iff a b
 notation □a := formula.box a
 notation ◇a := formula.diamond a
 
--- notation `⊥` := formula.bottom
--- notation `⊤` := formula.top
--- prefix `¬` :40 := formula.not
--- infix ` ∧ ` :35 := formula.and
--- infix ` ∨ ` :30 := formula.or
--- infix ` ↔ ` :20 := formula.iff
--- prefix `□` :40 := formula.box
--- prefix `◇` :40 := formula.diamond
+-- Used to construct formulas containing arbitrary symbols e.g. `0 ∨ 1` (`p ∨ q`).
+instance formula.has_zero : has_zero formula := { zero := formula.symbol 0 }
+instance formula.has_one : has_one formula := { one := formula.symbol 1 }
+instance formula.has_add : has_add formula := {
+  add := λx y, match (x, y) with
+  | (formula.symbol x, formula.symbol y) := formula.symbol (x + y)
+  | (x, _) := x
+  end
+}
 
-meta def formula.to_pexpr : formula → pexpr
-| ⊤ := ``(⊤)
-| ⊥ := ``(⊥)
-| (formula.symbol s) := ``(formula.symbol %%s)
-| ¬a := ``(¬%%a.to_pexpr)
-| (a ∧ b) := ``(%%a.to_pexpr ∧ %%b.to_pexpr)
-| (a ∨ b) := ``(%%a.to_pexpr ∨ %%b.to_pexpr)
-| (a ⟶ b) := ``(%%a.to_pexpr ⟶ %%b.to_pexpr)
-| (a ↔ b) := ``(%%a.to_pexpr ↔ %%b.to_pexpr)
-| □a := ``(□%%a.to_pexpr)
-| ◇a := ``(◇%%a.to_pexpr)
-
-meta instance formula.has_to_pexpr : has_to_pexpr formula :=
-{ to_pexpr := formula.to_pexpr }
-
+/-- A formula is modal free iff it contains no modal operators. -/
 @[simp] def modal_free : formula → Prop
 | ⊤ := true
 | ⊥ := true
@@ -65,6 +56,7 @@ meta instance formula.has_to_pexpr : has_to_pexpr formula :=
 | □_ := false
 | ◇_ := false
 
+/-- Substitutes sentence symbols for formulas in a formula according to a mapping function. -/
 @[simp] def subst (substs : symbol → formula) : formula → formula
 | ⊤ := ⊤
 | ⊥ := ⊥
@@ -76,6 +68,14 @@ meta instance formula.has_to_pexpr : has_to_pexpr formula :=
 | (a ↔ b) := subst a ↔ subst b
 | □a := □subst a
 | ◇a := ◇subst a
+
+@[simp] lemma subst.ident (a : formula) : subst formula.symbol a = a :=
+begin
+  induction a,
+  repeat { simp [a_ih, subst] },
+  repeat { simp },
+  repeat { tauto },
+end
 
 @[simp] def substitution_inst (a b : formula) : Prop :=
 ∃substs, subst substs a = b

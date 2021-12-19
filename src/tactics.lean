@@ -2,9 +2,20 @@ import tactic.basic
 
 import .formula
 
-@[simp] def p := formula.symbol 0
-@[simp] def q := formula.symbol 1
-@[simp] def r := formula.symbol 2
+meta def formula.to_pexpr : formula → pexpr
+| ⊤ := ``(⊤)
+| ⊥ := ``(⊥)
+| (formula.symbol s) := ``(formula.symbol %%s)
+| ¬a := ``(¬%%a.to_pexpr)
+| (a ∧ b) := ``(%%a.to_pexpr ∧ %%b.to_pexpr)
+| (a ∨ b) := ``(%%a.to_pexpr ∨ %%b.to_pexpr)
+| (a ⟶ b) := ``(%%a.to_pexpr ⟶ %%b.to_pexpr)
+| (a ↔ b) := ``(%%a.to_pexpr ↔ %%b.to_pexpr)
+| □a := ``(□%%a.to_pexpr)
+| ◇a := ``(◇%%a.to_pexpr)
+
+meta instance formula.has_to_pexpr : has_to_pexpr formula :=
+{ to_pexpr := formula.to_pexpr }
 
 meta def build_func : pexpr → expr → tactic pexpr
 | f `(and %%l %%r) :=
@@ -33,6 +44,7 @@ do
   tactic.exact f,
   `[tautology!]
 
+/-- Attempts to automatically show the derivability of a tautology. -/
 meta def tactic.derive_taut (taut : formula) : tactic unit :=
 do
   let opts : tactic.apply_cfg := {new_goals := tactic.new_goals.all},

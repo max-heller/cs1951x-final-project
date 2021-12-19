@@ -1,0 +1,3 @@
+# Soundness (and some completeness) of modal logics
+
+My project contains a representation of modal formulas (`src/formula.lean`), modal semantics (`src/semantics.lean`), and modal derivations (`src/derivations.lean`). Additionally, I show the soundness of derivation systems (`src/soundness.lean`) and some steps towards their completeness (`src/completeness.lean`). Some notable theorems used in completeness, such as Lindenbaum's Lemma, are proved, but many other parts are partially or fully stubbed out with `sorry`. I tried to squeeze in on the proof from both sides, so the final result is stated, just not fully proved.

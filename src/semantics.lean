@@ -3,6 +3,7 @@ import tactic.interactive
 
 import .formula
 
+/-- A formula is satisfied by an assignment if it evaluates to true. -/
 @[simp] def satisfies (asgn : symbol → Prop) : formula → Prop
 | ⊤ := true
 | ⊥ := false
@@ -15,17 +16,21 @@ import .formula
 | □a := false
 | ◇a := false
 
+/-- A tautology is a formula that is always true. -/
 structure tautology :=
 (a : formula)
 {modal_free : modal_free a}
 (taut : ∀asgn, satisfies asgn a)
 
+/-- A model is a collection of worlds with a relation and an interpretation function that
+    determines at which worlds sentence symbols are true. -/
 structure model :=
 {world : Type}
 (w : set world)
 (r : world → world → Prop)
 (v : symbol → set world)
 
+/-- Definition of truth at a world in a model. -/
 @[simp] def truth (m : model) : m.world → formula → Prop
 | _ ⊥ := false
 | _ ⊤ := true
@@ -40,20 +45,22 @@ structure model :=
 
 notation ⟨m, w⟩ ` ⊩ ` a := truth m w a
 
+/-- A formula is true in a model iff it is true in all worlds in the model. -/
 @[simp] def true_in (m : model) (a : formula) := ∀w ∈ m.w, ⟨m, w⟩ ⊩ a
 
 reserve infix ` ⊩ ` :15
 notation m ⊩ a := true_in m a
 
-@[simp] def valid (c : set model) (a : formula) := ∀m ∈ c, m ⊩ a
+/-- A formula is true in a set of models iff it is true in all models in the set. -/
+@[simp] def valid (𝒞 : set model) (a : formula) := ∀m ∈ 𝒞, m ⊩ a
 
 reserve prefix `⊨ ` :15
 reserve infix ` ⊨ ` :15
 
-notation c ⊨ a := valid c a
+notation 𝒞 ⊨ a := valid 𝒞 a
 notation ⊨ a := set.univ ⊨ a
 
-@[simp] lemma valid_imp_valid_in (a : formula) {ha : ⊨ a} {c : set model} : c ⊨ a :=
+@[simp] lemma valid_imp_valid_in (a : formula) {ha : ⊨ a} {𝒞 : set model} : 𝒞 ⊨ a :=
 begin
   intros m _,
   apply ha,
@@ -108,6 +115,7 @@ begin
   repeat { simp at ha, contradiction, },
 end
 
+/-- All substitution instances of tautologies are valid. -/
 theorem tautology.valid (taut : tautology) (a : formula) :
   substitution_inst taut.a a → ⊨ a :=
 begin
@@ -137,7 +145,7 @@ begin
   assumption,
 end
 
-theorem mp_valid {c : set model} (a b : formula) : (c ⊨ a ⟶ b) → (c ⊨ a) → (c ⊨ b) :=
+theorem mp_valid {𝒞 : set model} (a b : formula) : (𝒞 ⊨ a ⟶ b) → (𝒞 ⊨ a) → (𝒞 ⊨ b) :=
 begin
   intros hab ha m _ w _,
   apply mp,
@@ -148,7 +156,7 @@ begin
   assumption',
 end
 
-theorem nec_valid {c : set model} (a : formula) : (c ⊨ a) → (c ⊨ □a) :=
+theorem nec_valid {𝒞 : set model} (a : formula) : (𝒞 ⊨ a) → (𝒞 ⊨ □a) :=
 begin
   intro ha,
   intros m _ w _,
