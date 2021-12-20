@@ -6,7 +6,7 @@ import .tactics
 inductive derivable (axms : set formula) : formula → Prop
 | k (a b : formula) : derivable (k a b)
 | dual (a : formula) : derivable (dual a)
-| taut (taut : tautology) (a : formula) (h : substitution_inst taut.a a) : derivable a
+| taut (a : formula) (ha : tautology a) : derivable a
 | axm (axm ∈ axms) (a : formula) (h : substitution_inst axm a) : derivable a
 | mp (a b : formula) (hab : derivable (a ⟶ b)) (ha : derivable a) : derivable b
 | nec {a : formula} (ha : derivable a) : derivable □a
@@ -64,7 +64,7 @@ begin
   intros ha,
   apply exists.intro [a],
   simp [ha],
-  tactic.derive_taut (0 ⟶ 0),
+  derive_taut,
 end
 
 lemma derivable.cut (axms : set formula) (Γ Γ' : set formula) (a b : formula) :
@@ -101,7 +101,7 @@ begin
     { induction xs,
       { simp at *,
         apply derivable.mp a,
-        { tactic.derive_taut (0 ⟶ 1 ⟶ 0), },
+        { derive_taut, },
         { assumption, }, },
       { simp at *,
         sorry } } },
@@ -140,22 +140,22 @@ begin
 end
 
 example (a b : formula) : ⊢ (a ∨ ¬a) ∧ (b ∨ ¬b) :=
-by tactic.derive_taut ((0 ∨ ¬0) ∧ (1 ∨ ¬1))
+by derive_taut
 
 example (a b c : formula) : ⊢ (a ⟶ b) ⟶ (b ⟶ c) ⟶ (a ⟶ c) :=
-by tactic.derive_taut ((0 ⟶ 1) ⟶ (1 ⟶ 2) ⟶ (0 ⟶ 2))
+by derive_taut
 
 lemma box_and (a b : formula) : ⊢ □(a ∧ b) ⟶ (□a ∧ □b) :=
 begin
-  apply derivable.mp,
-  { apply derivable.mp,
-    { tactic.derive_taut ((0 ⟶ 1) ⟶ (0 ⟶ 2) ⟶ 0 ⟶ (1 ∧ 2)), },
+  apply derivable.mp (□(a ∧ b) ⟶ □b),
+  { apply derivable.mp (□(a ∧ b) ⟶ □a),
+    { derive_taut, },
     { apply derivable.mp,
       { apply derivable.k (a ∧ b) a, },
       { apply derivable.nec,
-        tactic.derive_taut (0 ∧ 1 ⟶ 0), } } },
+        derive_taut, } } },
   { apply derivable.mp,
     { apply derivable.k, },
     { apply derivable.nec,
-      tactic.derive_taut (0 ∧ 1 ⟶ 1) } },
+      derive_taut, } },
 end

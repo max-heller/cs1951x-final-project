@@ -15,7 +15,7 @@ begin
   { apply valid_imp_valid_in _,
     apply dual.valid, },
   { apply valid_imp_valid_in _,
-    apply tautology.valid hd_taut,
+    apply tautology.valid,
     assumption, },
   { apply haxms hd_axm,
     assumption', },

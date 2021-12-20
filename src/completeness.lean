@@ -184,7 +184,7 @@ begin
       { apply derivable.monotonicity ∅,
         tauto,
         rw derivable.from.no_premises,
-        tactic.derive_taut (¬0 ⟶ 0 ⟶ ⊥), },
+        derive_taut, },
       { exact hdna, }, },
     apply derivable.reflexivity a ha, },
 end
@@ -202,7 +202,7 @@ begin
       { apply derivable.monotonicity ∅,
         tauto,
         rw derivable.from.no_premises,
-        tactic.derive_taut (¬0 ⟶ 0 ⟶ ⊥), },
+        derive_taut, },
       { apply derivable.reflexivity,
         assumption, }, },
     assumption, },

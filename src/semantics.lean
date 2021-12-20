@@ -4,7 +4,7 @@ import tactic.interactive
 import .formula
 
 /-- A formula is satisfied by an assignment if it evaluates to true. -/
-@[simp] def satisfies (asgn : symbol → Prop) : formula → Prop
+@[simp] def satisfies (asgn : symbol → Prop) (modal_asgn : formula → Prop) : formula → Prop
 | ⊤ := true
 | ⊥ := false
 | (formula.symbol s) := asgn s
@@ -13,14 +13,11 @@ import .formula
 | (a ∨ b) := satisfies a ∨ satisfies b
 | (a ⟶ b) := satisfies a → satisfies b
 | (a ↔ b) := satisfies a ↔ satisfies b
-| □a := false
-| ◇a := false
+| □a := modal_asgn □a
+| ◇a := modal_asgn ◇a
 
 /-- A tautology is a formula that is always true. -/
-structure tautology :=
-(a : formula)
-{modal_free : modal_free a}
-(taut : ∀asgn, satisfies asgn a)
+def tautology (a : formula) := ∀v m, satisfies v m a
 
 /-- A model is a collection of worlds with a relation and an interpretation function that
     determines at which worlds sentence symbols are true. -/
@@ -102,22 +99,18 @@ begin
     assumption, }
 end
 
-theorem foo (a : formula) (ha : modal_free a) (substs : symbol → formula)
-    (v : symbol → Prop) (m : model) (w ∈ m.w)
-    (hv : ∀s, v s ↔ ⟨m, w⟩ ⊩ substs s) :
-  satisfies v a ↔ ⟨m, w⟩ ⊩ subst substs a :=
+lemma foo (a : formula)
+    (m : model) (w ∈ m.w)
+    (v : symbol → Prop) (hv : ∀s, v s ↔ ⟨m, w⟩ ⊩ formula.symbol s)
+    (mv : formula → Prop) (hmv : ∀a, mv a ↔ ⟨m, w⟩ ⊩ a) :
+  satisfies v mv a ↔ ⟨m, w⟩ ⊩ a :=
 begin
   induction a,
-  repeat { simp },
-  { apply hv a, },
-  { simp [a_ih ha], },
-  repeat { simp [a_ih_a (and.left ha), a_ih_b (and.right ha)], },
-  repeat { simp at ha, contradiction, },
+  repeat { simp * at *, },
 end
 
-/-- All substitution instances of tautologies are valid. -/
-theorem tautology.valid (taut : tautology) (a : formula) :
-  substitution_inst taut.a a → ⊨ a :=
+/-- All tautologies are valid. -/
+theorem tautology.valid (a : formula) : tautology a → ⊨ a :=
 begin
   contrapose,
   intros h₁ h₂,
@@ -127,15 +120,9 @@ begin
   cases hm with w hw,
   cases hw,
   apply hw_right,
-  rw substitution_inst at h₂,
-  apply exists.elim h₂,
-  intros substs hs,
-  let asgn := λs, ⟨m, w⟩ ⊩ substs s,
-  have x := foo taut.a taut.modal_free substs asgn m w _ _,
-  simp [←hs, ←x],
-  apply taut.taut,
-  { assumption, },
-  { simp, },
+  have h := foo a m w hw_left (λs, ⟨m, w⟩ ⊩ formula.symbol s) (by simp) (λa, ⟨m, w⟩ ⊩ a) (by simp),
+  simp [←h],
+  apply h₂,
 end
 
 theorem mp (a b : formula) (m : model) (w ∈ m.w) : (⟨m, w⟩ ⊩ a ⟶ b) → (⟨m, w⟩ ⊩ a) → (⟨m, w⟩ ⊩ b) :=
