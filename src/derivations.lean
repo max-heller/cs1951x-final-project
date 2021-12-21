@@ -115,7 +115,7 @@ begin
     { exact h, }, },
 end
 
-lemma derivable.monotonicity {axms : set formula} (Γ Γ' : set formula) (a : formula) :
+lemma derivable.monotonicity {axms : set formula} (Γ Γ' : set formula) {a : formula} :
   Γ ⊆ Γ' → (Γ ⊢[axms] a) → (Γ' ⊢[axms] a) :=
 begin
   intros hp hd,
@@ -137,15 +137,6 @@ begin
   apply exists.intro [a],
   simp [ha],
   derive_taut,
-end
-
-lemma derivable.cut (axms : set formula) (Γ Γ' : set formula) (a b : formula) :
-  (Γ ⊢[axms] a) → ((Γ' ∪ {a}) ⊢[axms] b) → ((Γ ∪ Γ') ⊢[axms] b) :=
-begin
-  intros hda hdb,
-  cases hda with xs hxs,
-  cases hdb with ys hys,
-  sorry
 end
 
 lemma foldr_deduction (a b) (xs) :
@@ -237,6 +228,18 @@ begin
     { apply derivable.redundant_premises ys,
       { simp },
       { assumption }, }, },
+end
+
+lemma derivable.cut (axms : set formula) (Γ Γ' : set formula) (a b : formula) :
+  (Γ ⊢[axms] a) → (Γ' ∪ {a} ⊢[axms] b) → (Γ ∪ Γ' ⊢[axms] b) :=
+begin
+  intros hda hdb,
+  rw derivable.deduction at hdb,
+  apply derivable.from.mp a b,
+  { apply derivable.monotonicity Γ' _ _ hdb,
+    simp, },
+  { apply derivable.monotonicity Γ _ _ hda,
+    simp, },
 end
 
 example (a b : formula) : ⊢ (a ∨ ¬a) ∧ (b ∨ ¬b) :=
