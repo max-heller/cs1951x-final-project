@@ -19,9 +19,81 @@ notation ⊢ a := ∅ ⊢ a
 
 /-- A formula `a` is `Σ`-derivable from a set of premises `Γ` iff `Σ ⊢ C₁ → ⋯ → Cₙ → a` for some `{Cᵢ} ⊆ Γ`. -/
 @[simp] def derivable.from (axms : set formula) (Γ : set formula) (a : formula) : Prop :=
-∃xs, (∀x ∈ xs, x ∈ Γ) ∧ (axms ⊢ (list.foldr formula.implies a xs))
+∃xs, (∀x ∈ xs, x ∈ Γ) ∧ (axms ⊢ list.foldr formula.implies a xs)
 
 notation Γ ` ⊢[`axms`] ` a := derivable.from axms Γ a
+
+def derivable.from.rev {axms : set formula} (Γ : set formula) (Γ' : list formula) (a : formula) :
+  (∀x ∈ Γ', x ∈ Γ) → (axms ⊢ Γ'.foldr formula.implies a) → (Γ ⊢[axms] a) :=
+begin
+  intros hΓ' hd,
+  apply exists.intro Γ',
+  tautology,
+end
+
+lemma all_antecedents {v : symbol → Prop} {mv : formula → Prop} (a : formula) (xs : list formula) :
+  satisfies v mv (xs.foldr formula.implies a) ↔ (∀x ∈ xs, satisfies v mv x) → satisfies v mv a :=
+begin
+  apply iff.intro,
+  { induction xs,
+    { simp, },
+    { intros ha hxs,
+      simp at ha,
+      apply xs_ih,
+      { apply ha,
+        apply hxs,
+        simp, },
+      { intros x hx,
+        simp at hxs,
+        apply hxs.elim_right,
+        assumption, }, }, },
+  { intro hxs,
+    induction xs,
+    { simp [hxs], },
+    { simp,
+      intro h,
+      apply xs_ih,
+      intros h,
+      apply hxs,
+      intros x hx,
+      cases hx,
+      { rw hx,
+        assumption, },
+      { apply h,
+        exact hx, }, }, },
+end
+
+lemma derivable.redundant_premises {axms : set formula} {Γ : list formula} {a : formula} (Γ' ⊆ Γ) :
+  (axms ⊢ Γ'.foldr formula.implies a) → (axms ⊢ Γ.foldr formula.implies a) :=
+begin
+  intro hΓ',
+  apply derivable.mp (Γ'.foldr formula.implies a) _ _ hΓ',
+  clear hΓ',
+  derive_taut,
+  intros v mv hΓ',
+  rw all_antecedents at *,
+  intro hΓ,
+  apply hΓ',
+  intros x hx,
+  apply hΓ,
+  apply H,
+  assumption,
+end
+
+lemma derivable.from.exact {axms : set formula} (Γ : list formula) (a : formula) :
+  (axms ⊢ Γ.foldr formula.implies a) ↔ ((λx, x ∈ Γ) ⊢[axms] a) :=
+begin
+  apply iff.intro,
+  { intro h,
+    apply derivable.from.rev (λx, x ∈ Γ) Γ,
+    { tauto, },
+    { assumption, }, },
+  { intro h,
+    cases h with xs hxs,
+    cases hxs with hxs hd,
+    have hxs' : xs ⊆ Γ := hxs,
+    exact derivable.redundant_premises xs hxs hd, },
+end
 
 @[simp] lemma derivable.from.no_premises (axms : set formula) (a : formula) :
   (∅ ⊢[axms] a) ↔ (axms ⊢ a) :=
@@ -71,6 +143,8 @@ lemma derivable.cut (axms : set formula) (Γ Γ' : set formula) (a b : formula) 
   (Γ ⊢[axms] a) → ((Γ' ∪ {a}) ⊢[axms] b) → ((Γ ∪ Γ') ⊢[axms] b) :=
 begin
   intros hda hdb,
+  cases hda with xs hxs,
+  cases hdb with ys hys,
   sorry
 end
 
@@ -121,6 +195,17 @@ begin
       assumption, }, }
 end
 
+lemma mp_from_premises {v : symbol → Prop} {mv : formula → Prop} (a b : formula) (Γ : list formula)
+    (hab : satisfies v mv (Γ.foldr formula.implies (a ⟶ b))) (ha : satisfies v mv (Γ.foldr formula.implies a)) :
+  satisfies v mv (Γ.foldr formula.implies b) :=
+begin
+  induction Γ,
+  { simp * at *, },
+  { simp * at *,
+    intro hhd,
+    simp * at *, },
+end
+
 lemma derivable.from.mp {axms Γ : set formula} (a b : formula)
     (hab : Γ ⊢[axms] (a ⟶ b)) (ha : Γ ⊢[axms] a) :
   Γ ⊢[axms] b :=
@@ -136,7 +221,18 @@ begin
     cases hx,
     { apply hxs, assumption, },
     { apply hys, assumption, }, },
-  { sorry }
+  { apply derivable.mp (list.foldr formula.implies a (xs ++ ys)),
+    { apply derivable.mp (list.foldr formula.implies (a ⟶ b) (xs ++ ys)),
+      { derive_taut,
+        intros v mv h₁ h₂,
+        rw ←list.foldr_append at *,
+        exact mp_from_premises a b (xs ++ ys) h₁ h₂, },
+      { apply derivable.redundant_premises xs,
+        { simp, },
+        { assumption, } }, },
+    { apply derivable.redundant_premises ys,
+      { simp },
+      { assumption }, }, },
 end
 
 example (a b : formula) : ⊢ (a ∨ ¬a) ∧ (b ∨ ¬b) :=
