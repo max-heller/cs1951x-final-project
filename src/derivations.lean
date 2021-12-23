@@ -293,6 +293,15 @@ begin
       apply derivable.dual, }, },
 end
 
+lemma derivable.RK {axms : set formula} {a : formula} {Γ : list formula} :
+  (axms ⊢ Γ.foldr formula.implies a) → (axms ⊢ (Γ.map (λa, □a)).foldr formula.implies □a) :=
+begin
+  intro hda,
+  induction Γ,
+  { simp * at *,
+    exact derivable.nec hda, },
+  { sorry },
+end
 
 example (a b : formula) : ⊢ (a ∨ ¬a) ∧ (b ∨ ¬b) :=
 by derive_taut

@@ -178,11 +178,36 @@ end
 
 lemma derive_imp_derive_box {axms} {Γ : set formula} {a : formula} :
   (Γ ⊢[axms] a) → (□Γ ⊢[axms] □a) :=
-sorry
+begin
+  intro hda,
+  cases hda with xs hxs,
+  cases hxs with hxs hda,
+  apply exists.intro (xs.map (λa, □a)),
+  split,
+  { intros x hx,
+    simp * at *,
+    cases hx with a ha,
+    apply exists.intro a,
+    simp *, },
+  { exact derivable.RK hda, },
+end
 
 lemma debox_derive_imp_derive_box {axms} {Γ : set formula} {a : formula} :
   (□⁻¹Γ ⊢[axms] a) → (Γ ⊢[axms] □a) :=
-sorry
+begin
+  intro hda,
+  cases hda with xs hxs,
+  cases hxs with hxs hda,
+  apply exists.intro (xs.map (λa, □a)),
+  split,
+  { intros x hx,
+    simp * at *,
+    cases hx with a ha,
+    rw ←ha.elim_right,
+    apply hxs,
+    exact ha.elim_left, },
+  { exact derivable.RK hda, },
+end
 
 def ccₙ (s axms : set formula) : ℕ → set formula
 | 0 := s
