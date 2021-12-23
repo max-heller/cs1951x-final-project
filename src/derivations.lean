@@ -130,7 +130,7 @@ begin
   { assumption, }
 end
 
-lemma derivable.reflexivity {axms Γ : set formula} (a : formula) :
+lemma derivable.reflexivity {axms Γ : set formula} {a : formula} :
   a ∈ Γ → (Γ ⊢[axms] a) :=
 begin
   intros ha,
@@ -241,6 +241,58 @@ begin
   { apply derivable.monotonicity Γ _ _ hda,
     simp, },
 end
+
+lemma derivable.from.box_not_iff_not_diamond {axms Γ : set formula} {a : formula} :
+  (Γ ⊢[axms] □¬a) ↔ (Γ ⊢[axms] ¬◇a) :=
+begin
+  apply iff.intro,
+  repeat {
+    intro h,
+    apply derivable.from.mp _ _ _ h,
+    apply derivable.from.mp (dual a),
+    { rw dual,
+      derive_taut, },
+    { ignore_premises,
+      apply derivable.dual, },
+  },
+end
+
+lemma derivable.from.not_box_iff_diamond_not {axms Γ : set formula} {a : formula} :
+  (Γ ⊢[axms] ¬□a) ↔ (Γ ⊢[axms] ◇¬a) :=
+begin
+  apply iff.intro,
+  { intro h,
+    apply derivable.from.mp _ _ _ h,
+    apply derivable.from.mp (dual ¬a),
+    { rw dual,
+      apply derivable.from.mp (¬□a ⟶ ¬□¬¬a),
+      { derive_taut, },
+      { apply derivable.from.mp (□¬¬a ⟶ □a),
+        { derive_taut, },
+        { ignore_premises,
+          apply derivable.mp,
+          { exact derivable.k (¬¬a) a, },
+          { apply derivable.nec,
+            derive_taut, }, }, }, },
+    { ignore_premises,
+      apply derivable.dual, }, },
+  { intro h,
+    apply derivable.from.mp _ _ _ h,
+    apply derivable.from.mp (dual ¬a),
+    { rw dual,
+      apply derivable.from.mp (¬□¬¬a ⟶ ¬□a),
+      { derive_taut, },
+      { apply derivable.from.mp (□a ⟶ □¬¬a),
+        { derive_taut, },
+        { ignore_premises,
+          apply derivable.mp,
+          { apply derivable.k, },
+          { apply derivable.nec,
+            derive_taut, }, }, }, },
+    { ignore_premises,
+      apply derivable.dual, }, },
+end
+
 
 example (a b : formula) : ⊢ (a ∨ ¬a) ∧ (b ∨ ¬b) :=
 by derive_taut

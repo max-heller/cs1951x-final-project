@@ -4,6 +4,10 @@ import .derivations
 /-- A set `s` is `Σ`-consistent if it does not `Σ`-derive `⊥`.  -/
 def set.consistent (s axms : set formula) : Prop := ¬(s ⊢[axms] ⊥)
 
+lemma derivable_iff_not_consistent {Γ : set formula} {axms} {a} :
+  (Γ ⊢[axms] a) ↔ ¬(Γ ∪ {¬a}).consistent axms :=
+sorry
+
 lemma consistent_extensible (Γ : set formula) (axms) :
   Γ.consistent axms → ∀a, (Γ ∪ {a}).consistent axms ∨ (Γ ∪ {¬a}).consistent axms :=
 begin

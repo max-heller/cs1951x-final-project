@@ -9,11 +9,180 @@ import .enumeration
 
 open_locale classical
 
+reserve prefix `□⁻¹` :40
+reserve prefix `◇⁻¹` :40
+
+notation □⁻¹Γ := {a | (□a) ∈ Γ}
+notation ◇⁻¹Γ := {a | (◇a) ∈ Γ}
+notation □Γ := {(□a) | a ∈ Γ}
+notation ◇Γ := {(◇a) | a ∈ Γ}
+
 /-- As set `s` is complete if, for any formula `x`, either `x` or `¬x` is contained in `s`. -/
 def set.complete (s : set formula) := ∀x, x ∈ s ∨ (¬x) ∈ s
 
 /-- As set `s` is complete `Σ`-consistent if it is complete and `Σ`-consistent. -/
 def set.complete_consistent (s : set formula) (axms) := s.consistent axms ∧ s.complete
+
+@[simp] lemma set.complete_consistent.not_mem_iff {axms : set formula} {Γ : set formula} (hcc : Γ.complete_consistent axms) {a : formula} :
+  a ∉ Γ ↔ (¬a) ∈ Γ :=
+begin
+  apply iff.intro,
+  { intro h,
+    cases hcc with _ hc,
+    rw set.complete at hc,
+    apply or.resolve_left (hc a) h, },
+  { intro h,
+    cases hcc with hc _,
+    rw set.consistent at hc,
+    by_contradiction ha,
+    apply hc,
+    have hdna := derivable.reflexivity h,
+    apply derivable.from.mp a,
+    { apply derivable.from.mp ¬a,
+      { derive_taut, },
+      { exact hdna, }, },
+    apply derivable.reflexivity ha, },
+end
+
+lemma set.complete_consistent.deductive_closure {axms : set formula} {Γ : set formula} (hcc : Γ.complete_consistent axms) (a : formula) :
+  (Γ ⊢[axms] a) → a ∈ Γ :=
+begin
+  intro ha,
+  by_contradiction,
+  rw set.complete_consistent.not_mem_iff at h,
+  { cases hcc with h₁ h₂,
+    apply h₁,
+    apply derivable.from.mp a,
+    { apply derivable.from.mp ¬a,
+      { derive_taut, },
+      { apply derivable.reflexivity,
+        assumption, }, },
+    assumption, },
+  assumption,
+end
+
+lemma set.complete_consistent.not_mem_bot {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) :
+  formula.bottom ∉ Γ :=
+begin
+  by_contradiction,
+  apply hΓ.elim_left,
+  exact derivable.reflexivity h,
+end
+
+lemma set.complete_consistent.mem_top {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) :
+  formula.top ∈ Γ :=
+begin
+  apply set.complete_consistent.deductive_closure hΓ,
+  derive_taut,
+end
+
+lemma set.complete_consistent.mem_and {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) {a b : formula} :
+  (a ∧ b) ∈ Γ ↔ a ∈ Γ ∧ b ∈ Γ :=
+begin
+  apply iff.intro,
+  { intro h,
+    split,
+    repeat {
+      apply set.complete_consistent.deductive_closure hΓ,
+      apply derivable.from.mp (a ∧ b) _ _ (derivable.reflexivity h),
+      derive_taut,
+    }, },
+  { intro h,
+    apply set.complete_consistent.deductive_closure hΓ,
+    apply derivable.from.mp a,
+    apply derivable.from.mp b,
+    derive_taut,
+    exact derivable.reflexivity (and.elim_right h),
+    exact derivable.reflexivity (and.elim_left h), },
+end
+
+lemma set.complete_consistent.mem_or {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) {a b : formula} :
+  (a ∨ b) ∈ Γ ↔ a ∈ Γ ∨ b ∈ Γ :=
+begin
+  apply iff.intro,
+  { intro h,
+    { by_contradiction h',
+      apply not.elim _ h,
+      rw set.complete_consistent.not_mem_iff hΓ,
+      apply set.complete_consistent.deductive_closure hΓ,
+      apply derivable.from.mp (¬a),
+      apply derivable.from.mp (¬b),
+      derive_taut,
+      repeat {
+        apply derivable.reflexivity,
+        rw ←set.complete_consistent.not_mem_iff hΓ,
+        tauto,
+      }, }, },
+  { intro h,
+    apply set.complete_consistent.deductive_closure hΓ,
+    cases h,
+    { apply derivable.from.mp _ _ _ (derivable.reflexivity h),
+      derive_taut, },
+    { apply derivable.from.mp _ _ _ (derivable.reflexivity h),
+      derive_taut, }, },
+end
+
+lemma set.complete_consistent.mem_imp {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) {a b : formula} :
+  (a ⟶ b) ∈ Γ ↔ a ∈ Γ → b ∈ Γ :=
+begin
+  apply iff.intro,
+  { intro h,
+    { by_contradiction h',
+      apply not.elim _ h,
+      rw set.complete_consistent.not_mem_iff hΓ,
+      apply set.complete_consistent.deductive_closure hΓ,
+      apply derivable.from.mp a,
+      apply derivable.from.mp (¬b),
+      derive_taut,
+      { apply derivable.reflexivity,
+        rw ←set.complete_consistent.not_mem_iff hΓ,
+        tauto, },
+      { apply derivable.reflexivity,
+        tauto, }, }, },
+  { intro h,
+    apply set.complete_consistent.deductive_closure hΓ,
+    have h := not_or_of_imp h,
+    cases h,
+    { rw set.complete_consistent.not_mem_iff hΓ at h_1,
+      apply derivable.from.mp _ _ _ (derivable.reflexivity h_1),
+      derive_taut, },
+    { apply derivable.from.mp _ _ _ (derivable.reflexivity h_1),
+      derive_taut, }, },
+end
+
+lemma set.complete_consistent.mem_iff {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) {a b : formula} :
+  (a ↔ b) ∈ Γ ↔ (a ∈ Γ ↔ b ∈ Γ) :=
+begin
+  apply iff.intro,
+  { intro h,
+    apply iff.intro,
+    repeat {
+      intro h',
+      apply set.complete_consistent.deductive_closure hΓ,
+      apply derivable.from.mp _ _ _ (derivable.reflexivity h'),
+      apply derivable.from.mp _ _ _ (derivable.reflexivity h),
+      derive_taut,
+    }, },
+  { intro h,
+    apply set.complete_consistent.deductive_closure hΓ,
+    by_cases ha : a ∈ Γ,
+    { apply derivable.from.mp _ _ _ (derivable.reflexivity ha),
+      apply derivable.from.mp _ _ _ (derivable.reflexivity (h.mp ha)),
+      derive_taut, },
+    { have hna := (set.complete_consistent.not_mem_iff hΓ).mp ha,
+      have hnb := (set.complete_consistent.not_mem_iff hΓ).mp ((iff_false_left ha).mp h),
+      apply derivable.from.mp _ _ _ (derivable.reflexivity hna),
+      apply derivable.from.mp _ _ _ (derivable.reflexivity hnb),
+      derive_taut, }, },
+end
+
+lemma derive_imp_derive_box {axms} {Γ : set formula} {a : formula} :
+  (Γ ⊢[axms] a) → (□Γ ⊢[axms] □a) :=
+sorry
+
+lemma debox_derive_imp_derive_box {axms} {Γ : set formula} {a : formula} :
+  (□⁻¹Γ ⊢[axms] a) → (Γ ⊢[axms] □a) :=
+sorry
 
 def ccₙ (s axms : set formula) : ℕ → set formula
 | 0 := s
@@ -114,8 +283,8 @@ begin
   assumption',
 end
 
-/-- For any complete, `Σ` consistent set `s`, there exists a complete, `Σ`-consistent set built upon `s`. -/
-theorem lindenbaum (s : set formula) (axms) (hcc : s.complete_consistent axms) :
+/-- For any `Σ` consistent set `s`, there exists a complete, `Σ`-consistent set built upon `s`. -/
+theorem lindenbaum {axms : set formula} {s : set formula} (hcc : s.consistent axms) :
   ∃s' ⊇ s, s'.complete_consistent axms :=
 begin
   apply exists.intro (cc s axms),
@@ -126,8 +295,7 @@ begin
     rw ccₙ,
     assumption, },
   { split,
-    { cases hcc,
-      exact cc_consistent s axms hcc_left, },
+    { exact cc_consistent s axms hcc, },
     { rw set.complete,
       intros x,
       apply exists.elim (enumerate.complete x),
@@ -145,68 +313,207 @@ begin
 end
 
 lemma derivable_iff_mem_cc (axms Γ : set formula) (a : formula) :
-  (Γ ⊢[axms] a) ↔ (∀s ⊇ Γ, s.complete_consistent axms → a ∈ s) :=
-sorry
+  (Γ ⊢[axms] a) ↔ (∀Δ ⊇ Γ, Δ.complete_consistent axms → a ∈ Δ) :=
+begin
+  apply iff.intro,
+  { intros hda Δ hΔ hcc,
+    by_contradiction,
+    cases hcc with hconsistent hcomplete,
+    apply hconsistent,
+    apply derivable.from.mp a,
+    { apply derivable.from.mp ¬a,
+      { derive_taut, },
+      { rw set.complete at hcomplete,
+        apply derivable.reflexivity,
+        exact or.resolve_left (hcomplete a) h, }, },
+    { exact derivable.monotonicity Γ Δ hΔ hda, }, },
+  { intros h,
+    by_contradiction hnc,
+    rw [derivable_iff_not_consistent, not_not] at hnc,
+    cases lindenbaum hnc with Δ hΔ,
+    cases hΔ with hΔ hΔcc,
+    apply @not.elim (a ∈ Δ),
+    { rw set.complete_consistent.not_mem_iff hΔcc,
+      apply set.mem_of_subset_of_mem hΔ,
+      simp, },
+    { refine h Δ _ hΔcc,
+      intros x hx,
+      exact hΔ (or.intro_left _ hx), }, },
+end
+
+lemma set.complete_consistent.mem_box {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) {a : formula} :
+  (□a) ∈ Γ ↔ ∀Δ : set formula, Δ.complete_consistent axms → (□⁻¹Γ) ⊆ Δ → a ∈ Δ :=
+begin
+  apply iff.intro,
+  { intros hba Δ hΔcc hΔ,
+    apply hΔ,
+    exact hba, },
+  { contrapose,
+    intros hnba h,
+    have hndba : ¬(Γ ⊢[axms] □a) := begin
+      by_contradiction,
+      apply hnba,
+      exact set.complete_consistent.deductive_closure hΓ _ h,
+    end,
+    have hndba' : ¬(□⁻¹Γ ⊢[axms] a) := begin
+      by_contradiction,
+      apply hndba,
+      exact debox_derive_imp_derive_box h,
+    end,
+    have hnc := (iff_false_left hndba').mp derivable_iff_not_consistent,
+    rw not_not at hnc,
+    cases lindenbaum hnc with Δ hΔ,
+    cases hΔ with hΔ hΔcc, 
+    apply not.elim,
+    { change a ∉ Δ,
+      intro ha,
+      apply hΔcc.elim_left,
+      apply derivable.from.mp a _ _ (derivable.reflexivity ha),
+      apply derivable.from.mp ¬a,
+      derive_taut,
+      apply derivable.reflexivity,
+      apply hΔ,
+      simp, },
+    { apply h Δ hΔcc,
+      intros x hx,
+      apply hΔ,
+      exact or.intro_left _ hx, }, },
+end
+
+lemma set.complete_consistent.debox_subset_iff {axms} {Γ Δ : set formula}
+    (hΓ : Γ.complete_consistent axms) (hΔ : Δ.complete_consistent axms) :
+  (□⁻¹Γ) ⊆ Δ ↔ (◇Δ) ⊆ Γ :=
+begin
+  apply iff.intro,
+  { intros h x hx,
+    cases hx with a ha,
+    cases ha with ha hx,
+    rw ←hx at *,
+    clear hx x,
+    apply set.complete_consistent.deductive_closure hΓ,
+    apply derivable.from.mp ¬□¬a,
+    { apply derivable.from.mp (dual a),
+      { derive_taut, },
+      { ignore_premises,
+        apply derivable.dual, }, },
+    { apply derivable.reflexivity,
+      apply (hΓ.elim_right _).resolve_left,
+      by_contradiction h',
+      apply not.elim _ ha,
+      rw set.complete_consistent.not_mem_iff hΔ,
+      exact h h', }, },
+  { intros h a,
+    simp at h,
+    contrapose,
+    intro ha,
+    change (□a) ∉ Γ,
+    rw set.complete_consistent.not_mem_iff hΓ,
+    apply set.complete_consistent.deductive_closure hΓ,
+    { rw derivable.from.not_box_iff_diamond_not,
+      apply derivable.reflexivity,
+      rw set.complete_consistent.not_mem_iff hΔ at ha,
+      apply h,
+      simp,
+      exact ha, }, },
+end
+
+lemma set.complete_consistent.mem_diamond {axms} {Γ : set formula} (hΓ : Γ.complete_consistent axms) {a : formula} :
+  (◇a) ∈ Γ ↔ ∃Δ : set formula, Δ.complete_consistent axms ∧ (◇Δ) ⊆ Γ ∧ a ∈ Δ :=
+begin
+  -- have h₁ : (◇a) ∈ Γ ↔ (¬□¬a) ∈ Γ := sorry,
+  -- have h₂ : (¬□¬a) ∈ Γ ↔ (□¬a) ∉ Γ := sorry,
+  -- have h₃ := set.complete_consistent.mem_box hΓ,
+  sorry
+end
 
 def set.canonical_model (axms : set formula) : model :=
 {
   world := set formula,
   w := {Δ | Δ.complete_consistent axms},
-  r := λΔ Δ', {a | (□a) ∈ Δ} ⊆ Δ',
+  r := λΔ Δ', (□⁻¹Δ) ⊆ Δ',
   v := λp, {Δ | formula.symbol p ∈ Δ},
 }
 
 @[simp] lemma set.canonical_model.w (axms : set formula) : axms.canonical_model.w = {Δ | Δ.complete_consistent axms} :=
 by refl
 
+@[simp] lemma set.canonical_model.world (axms : set formula) : axms.canonical_model.world = set formula :=
+by refl
+
+@[simp] lemma set.canonical_model.v {axms : set formula} : axms.canonical_model.v = λp : symbol, {Δ : set formula | formula.symbol p ∈ Δ} :=
+by refl
+
+@[simp] lemma set.canonical_model.r {axms : set formula} : axms.canonical_model.r = λΔ Δ' : set formula, (□⁻¹Δ) ⊆ Δ' :=
+by refl
+
 /-- The Truth Lemma: a world `Δ` in the canonical model of a system makes a formula true
     iff the formula is contained in `Δ`. -/
-theorem truth_lemma (axms : set formula) {hc : has_mem formula axms.canonical_model.world} :
-  ∀a w, (⟨axms.canonical_model, w⟩ ⊩ a) ↔ a ∈ w :=
-sorry
-
-@[simp] lemma not_in_complete_consistent (axms Γ : set formula) (hcc : Γ.complete_consistent axms) (a : formula) :
-  a ∉ Γ ↔ (¬a) ∈ Γ :=
+theorem truth_lemma {axms : set formula} {Δ : set formula} {hΔ : Δ ∈ axms.canonical_model.w} :
+  ∀a, (⟨axms.canonical_model, Δ⟩ ⊩ a) ↔ a ∈ Δ :=
 begin
-  apply iff.intro,
-  { intro h,
-    cases hcc with _ hc,
-    rw set.complete at hc,
-    apply or.resolve_left (hc a) h, },
-  { intro h,
-    cases hcc with hc _,
-    rw set.consistent at hc,
-    by_contradiction ha,
-    apply hc,
-    have hdna := derivable.reflexivity (¬a) h,
-    apply derivable.from.mp a,
-    { apply derivable.from.mp ¬a,
-      { apply derivable.monotonicity ∅,
-        tauto,
-        rw derivable.from.no_premises,
-        derive_taut, },
-      { exact hdna, }, },
-    apply derivable.reflexivity a ha, },
-end
-
-lemma deductive_closure {axms : set formula} (Γ : set formula) (hcc : Γ.complete_consistent axms) (a : formula) :
-  (Γ ⊢[axms] a) → a ∈ Γ :=
-begin
-  intro ha,
-  by_contradiction,
-  rw not_in_complete_consistent axms at h,
-  { cases hcc with h₁ h₂,
-    apply h₁,
-    apply derivable.from.mp a,
-    { apply derivable.from.mp ¬a,
-      { apply derivable.monotonicity ∅,
-        tauto,
-        rw derivable.from.no_premises,
-        derive_taut, },
-      { apply derivable.reflexivity,
-        assumption, }, },
-    assumption, },
-  assumption,
+  intros a,
+  simp * at *,
+  induction a generalizing Δ,
+  { simp,
+    exact set.complete_consistent.not_mem_bot hΔ, },
+  { simp,
+    exact set.complete_consistent.mem_top hΔ, },
+  { simp, exact iff.rfl, },
+  { simp * at *,
+    apply set.complete_consistent.not_mem_iff hΔ, },
+  { simp * at *,
+    exact iff.symm (set.complete_consistent.mem_and hΔ), },
+  { simp * at *,
+    exact iff.symm (set.complete_consistent.mem_or hΔ), },
+  { simp * at *,
+    exact iff.symm (set.complete_consistent.mem_imp hΔ), },
+  { simp * at *,
+    exact iff.symm (set.complete_consistent.mem_iff hΔ), },
+  { apply iff.intro,
+    { intro hba,
+      simp at hba,
+      apply (set.complete_consistent.mem_box hΔ).mpr,
+      intros Δ' hΔ'cc hΔ',
+      rw ←a_ih hΔ'cc,
+      exact hba Δ' hΔ'cc hΔ', },
+    { intro hba,
+      intros Δ' hΔ' hrΔ',
+      rw a_ih hΔ',
+      apply hrΔ',
+      exact hba, }, },
+  { apply iff.intro,
+    { intro hda,
+      simp at hda,
+      apply (set.complete_consistent.mem_diamond hΔ).mpr,
+      cases hda with Δ' hΔ',
+      cases hΔ' with hΔ'cc hΔ',
+      cases hΔ' with hΔ' hΔ'a,
+      apply exists.intro Δ',
+      split,
+      exact hΔ'cc,
+      split,
+      { intros x hx,
+        rw set.complete_consistent.debox_subset_iff hΔ hΔ'cc at hΔ',
+        apply hΔ',
+        exact hx, },
+      { rw ←a_ih hΔ'cc,
+        exact hΔ'a, }, },
+    { contrapose,
+      intro hnda,
+      rw set.complete_consistent.not_mem_iff hΔ,
+      have hbna : ⟨axms.canonical_model, Δ⟩ ⊩ □¬a_a := begin
+        intros Δ' hΔ' hΔ'r,
+        by_contradiction,
+        apply hnda,
+        apply exists.intro Δ',
+        apply exists.intro hΔ',
+        split,
+        exact hΔ'r,
+        simp at h,
+        exact h,
+      end,
+      apply set.complete_consistent.deductive_closure hΔ,
+      sorry }, },
 end
 
 /-- Determination: the canonical model for `Σ` satisfies a formula iff the formula is `Σ`-derivable. -/
@@ -217,18 +524,19 @@ begin
   { intro ha,
     rw [←derivable.from.no_premises, derivable_iff_mem_cc],
     intros s _ hs,
-    rw ←truth_lemma axms,
+    rw ←truth_lemma,
     apply ha,
-    assumption, },
+    assumption', },
   { intros h w hw,
     rw truth_lemma,
-    apply deductive_closure,
+    apply set.complete_consistent.deductive_closure,
     { simp at hw,
       exact hw, },
     { apply derivable.monotonicity ∅,
       { tauto, },
       { rw derivable.from.no_premises,
-        assumption, }, }, },
+        assumption, }, },
+    assumption, },
 end
 
 /-- A system `Σ` is complete for a set `𝒞` of models iff for any formula `a`, `𝒞 ⊨ a → Σ ⊢ a`. -/
