@@ -18,8 +18,5 @@ begin
   rw [←set.union_singleton, derivable.deduction] at *,
   apply derivable.from.mp (a ⟶ ⊥) _ _ ha,
   apply derivable.from.mp (¬a ⟶ ⊥) _ _ hna,
-  apply derivable.monotonicity ∅,
-  { simp, },
-  { rw derivable.from.no_premises,
-    derive_taut, },
+  derive_taut,
 end
